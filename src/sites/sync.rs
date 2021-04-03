@@ -19,6 +19,13 @@ pub fn sync(
     path: &Path,
 ) -> Result<(Vec<KeyValuePair>, Vec<String>, AssetManifest), failure::Error> {
     kv::validate_target(target)?;
+    let subset = if let Some(site_config) = target.site.clone() {
+        site_config.subset
+    } else {
+        None
+    };
+    let subset_str = subset.as_deref().unwrap_or("");
+    
     // First, find all changed files in given local directory (aka files that are now stale
     // in Workers KV).
 

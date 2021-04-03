@@ -4,6 +4,7 @@ use std::path::Path;
 use cloudflare::endpoints::workerskv::write_bulk::KeyValuePair;
 
 use super::directory_keys_values;
+use super::remove_hash_from_path;
 use super::manifest::AssetManifest;
 use crate::commands::kv;
 use crate::http;
@@ -46,7 +47,7 @@ pub fn sync(
     }
     let remote_subset =  subset_keys(&remote_keys, &subset_str);
 
-    let (pairs, asset_manifest, _): (Vec<KeyValuePair>, AssetManifest, _) =
+    let (pairs, mut asset_manifest, _): (Vec<KeyValuePair>, AssetManifest, _) =
         directory_keys_values(target, path)?;
 
     let to_upload = filter_files(pairs.clone(), &remote_keys);
@@ -67,6 +68,19 @@ pub fn sync(
         .map(|key| key.to_owned())
         .collect();
 
+    if !subset_str.is_empty() {
+        for (key,val) in asset_manifest.iter_mut() {
+             if !Path::new(&key).starts_with(&subset_str) {
+                if let Some(original) = remote_keys.iter().find(|&k| {
+                    key == &remove_hash_from_path(Path::new(&k)).unwrap()
+                }) {
+                    if val != original {
+                        *val = String::from(original);
+                    }
+                }
+            }  
+        }
+    }
     StdErr::success("Success");
     Ok((to_upload, to_delete, asset_manifest))
 }

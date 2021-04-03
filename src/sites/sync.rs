@@ -78,6 +78,16 @@ fn filter_files(pairs: Vec<KeyValuePair>, already_uploaded: &HashSet<String>) ->
     filtered_pairs
 }
 
+fn subset_keys(keys: &HashSet<String>, subset_str: &str) -> HashSet<String> {
+    let mut filtered_keys: HashSet<String> = HashSet::new();
+    for key in keys {
+        if Path::new(&key).starts_with(&subset_str) {
+            filtered_keys.insert(key.clone());
+        }
+    }
+    filtered_keys
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

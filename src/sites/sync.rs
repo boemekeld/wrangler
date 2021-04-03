@@ -45,6 +45,7 @@ pub fn sync(
             Err(e) => anyhow::bail!(kv::format_error(e)),
         }
     }
+    let remote_subset =  subset_keys(&remote_keys, &subset_str);
 
     let (pairs, asset_manifest, _): (Vec<KeyValuePair>, AssetManifest, _) =
         directory_keys_values(target, path)?;
@@ -57,11 +58,13 @@ pub fn sync(
     for pair in pairs.iter() {
         local_keys.insert(pair.key.clone());
     }
+    let local_subset = subset_keys(&local_keys, &subset_str);
 
+    let to_upload = filter_files(pairs.clone(), &remote_subset, &subset_str);
     // Find keys that are present in remote but not present in local, and
     // stage them for deletion.
-    let to_delete: Vec<_> = remote_keys
-        .difference(&local_keys)
+    let to_delete: Vec<_> = remote_subset
+        .difference(&local_subset)
         .map(|key| key.to_owned())
         .collect();
 
@@ -69,10 +72,10 @@ pub fn sync(
     Ok((to_upload, to_delete, asset_manifest))
 }
 
-fn filter_files(pairs: Vec<KeyValuePair>, already_uploaded: &HashSet<String>) -> Vec<KeyValuePair> {
+fn filter_files(pairs: Vec<KeyValuePair>, already_uploaded: &HashSet<String>, subset_str: &str) -> Vec<KeyValuePair> {
     let mut filtered_pairs: Vec<KeyValuePair> = Vec::new();
     for pair in pairs {
-        if !already_uploaded.contains(&pair.key) {
+        if Path::new(&pair.key).starts_with(&subset_str) && !already_uploaded.contains(&pair.key) {
             filtered_pairs.push(pair);
         }
     }
@@ -139,7 +142,7 @@ mod tests {
             expiration: None,
             base64: None,
         }];
-        let actual = filter_files(pairs_to_upload, &exclude_keys);
+        let actual = filter_files(pairs_to_upload, &exclude_keys, "");
         check_kv_pairs_equality(expected, actual);
     }
 

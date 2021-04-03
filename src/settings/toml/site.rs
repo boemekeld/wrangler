@@ -16,6 +16,7 @@ pub struct Site {
     entry_point: Option<PathBuf>,
     pub include: Option<Vec<String>>,
     pub exclude: Option<Vec<String>>,
+    pub subset: Option<String>,
 }
 
 impl Site {
@@ -62,6 +63,7 @@ impl Default for Site {
             entry_point: Some(PathBuf::from(SITE_ENTRY_POINT)),
             include: None,
             exclude: None,
+            subset: None,
         }
     }
 }

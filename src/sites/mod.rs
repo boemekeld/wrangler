@@ -296,6 +296,29 @@ fn generate_path_with_hash(path: &Path, hashed_value: String) -> Result<String> 
     }
 }
 
+fn remove_hash_from_path(path: &Path) -> Result<String, failure::Error> {
+    if let Some(file_stem) = path.file_stem() {
+        let file_stem_path = Path::new(file_stem);
+        if let Some(file_name_unhashed) = file_stem_path.file_stem() {
+            let mut file_name = file_name_unhashed.to_os_string();
+            let extension = path.extension();
+    
+            if let Some(ext) = extension {
+                file_name.push(".");
+                file_name.push(ext);
+            }
+    
+            let new_path = path.with_file_name(file_name);
+    
+            Ok(generate_url_safe_path(&new_path)?)
+        } else {
+            failure::bail!("no file_name_unhashed for file_stem {}", file_stem_path.display())
+        }
+    } else {
+        failure::bail!("no file_stem for path {}", path.display())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

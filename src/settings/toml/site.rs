@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::commands::generate::run_generate;
@@ -13,7 +14,7 @@ const SITE_ENTRY_POINT: &str = "workers-site";
 pub struct Site {
     pub bucket: PathBuf,
     #[serde(rename = "entry-point")]
-    entry_point: Option<PathBuf>,
+    pub entry_point: Option<PathBuf>,
     pub include: Option<Vec<String>>,
     pub exclude: Option<Vec<String>>,
     pub subset: Option<String>,
@@ -39,7 +40,7 @@ impl Site {
         ))
     }
 
-    pub fn scaffold_worker(&self) -> Result<(), failure::Error> {
+    pub fn scaffold_worker(&self) -> Result<()> {
         let entry_point = &self.entry_point()?;
         let template = "https://github.com/cloudflare/worker-sites-init";
 

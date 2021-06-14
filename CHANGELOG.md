@@ -1,5 +1,232 @@
 # Changelog
 
+## v1.17.0
+
+- ### Features
+
+  - **feat: capture panics and generate error report - [nilslice], [pull/1888]**
+
+    This PR adds support for wrangler error reporting. Currently, all panics are caught and a report is generated, then written to disk. `wrangler report` or `wrangler report --log <file-name.log>` will upload the corresponding error report to Cloudflare
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1888]: https://github.com/cloudflare/wrangler/pull/1888
+
+- ### Fixes
+
+  - **fix: clarify error messages around durable objects beta - [nilslice], [pull/1921]**
+
+    Disambiguates error message described in #1859, adds more clarity around other places where Durable Object usage in beta may conflict with `wrangler` functionality.
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1921]: https://github.com/cloudflare/wrangler/pull/1921
+
+  - **Fix filtering by extension for js assets - [rubenamorim], [pull/1722]**
+
+    Fixes [#1719](https://github.com/cloudflare/wrangler/issues/1719)
+
+    [rubenamorim]: https://github.com/rubenamorim
+    [pull/1722]: https://github.com/cloudflare/wrangler/pull/1722
+
+  - **fix: use latest cloudflare api client, resolving wrangler whoami issue - [nilslice], [pull/1920]**
+
+    Updates `cloudflare-rs` crate to https://github.com/cloudflare/cloudflare-rs/commit/ae936d4b180155bafe5c44482a746fa490513df2, which should fix #1914.
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1920]: https://github.com/cloudflare/wrangler/pull/1920
+
+  - **Handle String panic payloads when generating reports - [ObsidianMinor], [pull/1934]**
+
+    Standard panics will only produce &str and String, but we were only handling &str, so this adds handling for String.
+
+    [obsidianminor]: https://github.com/ObsidianMinor
+    [pull/1934]: https://github.com/cloudflare/wrangler/pull/1934
+
+- ### Maintenance
+
+  - **chore: tokio ecosystem update - [nataliescottdavidson], [pull/1886]**
+
+    Update [tokio ecosystem](https://github.com/tokio-rs/tokio) crates including hyper, rustls, openssl and necessary API changes
+    Rewrite get_tunnel_url to use tokio-retry
+
+    [nataliescottdavidson]: https://github.com/nataliescottdavidson
+    [pull/1886]: https://github.com/cloudflare/wrangler/pull/1886
+
+  - **failure --> anyhow - [caass], [pull/1881]**
+
+    Follow up to [#1880](https://github.com/cloudflare/wrangler/pull/1880)
+
+    Switch from deprecated `failure` to `anyhow`. [read this](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md)
+
+    [caass]: https://github.com/caass
+    [pull/1881]: https://github.com/cloudflare/wrangler/pull/1881
+
+  - **further reduce complexity of main - [nilslice], [pull/1937]**
+
+    In many ways, thanks to @ObsidianMinor's work on #1932, we can split up the cli code further and keep a simple `main.rs`.
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1937]: https://github.com/cloudflare/wrangler/pull/1937
+
+  - **rebases & updates durable-objects-rc branch - [nilslice], [pull/1919]**
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1919]: https://github.com/cloudflare/wrangler/pull/1919
+
+  - **Reduce cognitive complexity in main - [ObsidianMinor], [pull/1932]**
+
+    This replaces our massive clap App with a much simpler Cli struct that
+    has all the same information in an easier to understand and modify
+    format (types).
+
+    [obsidianminor]: https://github.com/ObsidianMinor
+    [pull/1932]: https://github.com/cloudflare/wrangler/pull/1932
+
+  - **sorry i got excited with dependabot - [caass], [pull/1917]**
+
+    [caass]: https://github.com/caass
+    [pull/1917]: https://github.com/cloudflare/wrangler/pull/1917
+
+  - **update copy on text binding size limit - [caass], [pull/1911]**
+
+    [caass]: https://github.com/caass
+    [pull/1911]: https://github.com/cloudflare/wrangler/pull/1911
+
+  - **Updated cloudflared download link - [arunesh90], [pull/1900]**
+
+    The commit included with this PR updates the download link for cloudflared, as the previous link is no longer current and is now a redirect to https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
+
+    [arunesh90]: https://github.com/arunesh90
+    [pull/1900]: https://github.com/cloudflare/wrangler/pull/1900
+
+  - **Upgrade to GitHub-native Dependabot - [dependabot], [pull/1887]**
+
+    [dependabot]: https://dependabot.com/
+    [pull/1887]: https://github.com/cloudflare/wrangler/pull/1887
+
+
+## 🍏 v1.16.1
+
+- ### Features
+  - **Add `wasm_modules` config field for bundling arbitrary WebAssembly modules. - [losfair], [pull/1803]**
+
+    Currently it seems that wrangler only supports WebAssembly modules included from a `rust` or `webpack` project.
+
+    This pull request enables the inclusion of arbitrary WebAssembly modules through a `wasm_modules` config field.
+
+    [losfair]: https://github.com/losfair
+    [pull/1803]: https://github.com/cloudflare/wrangler/pull/1803
+
+- ### Fixes
+  - **fix: use x86_64 arch for pre-built downloads on M1 devices - [nilslice], [pull/1876]**
+
+    This PR forces the use of a pre-built x86_64 binary on a aarch64/arm64 Apple system. For M1 devices specifically, it will fix `wrangler generate`, and `wrangler build` for `type = "rust"` wrangler projects.
+
+    There is another semi-related
+    ... truncated
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1876]: https://github.com/cloudflare/wrangler/pull/1876
+
+  - **chore: include @cloudflare/binary-install directly as source - [nilslice], [pull/1877]**
+
+    This PR inlines the `@cloudflare/binary-install` dependency as a quickfix for #1811, in which usage reports indicated that the module occasionally failed to install.
+
+    I tested this by running `npm i && node run-wrangler.js` on both `npm
+    ... truncated
+
+    [nilslice]: https://github.com/nilslice
+    [pull/1877]: https://github.com/cloudflare/wrangler/pull/1877
+
+  - **Stop assuming KV values are UTF8 text - [koeninger], [pull/1878]**
+
+    Implementation of kv:key get is calling text() on the result of the api call, so it's replacing non-utf8 values with ef bf bd, the unicode REPLACEMENT CHAR. KV values can be arbitrary bytes, we shouldn't assume they're UTF8 text, so this p
+    ... truncated
+
+    [koeninger]: https://github.com/koeninger
+    [pull/1878]: https://github.com/cloudflare/wrangler/pull/1878
+
+
+## 1.16.0
+
+- ### Features
+
+  - **Custom Builds and Modules - [xortive], [caass], [pull/1855]**
+
+    Custom Builds and Modules has finally landed in a main release!
+    There's too many new features to write about in a changelog, so here's a
+    [link to the docs](https://developers.cloudflare.com/workers/cli-wrangler/configuration#build).
+
+    [xortive]: https://github.com/xortive
+    [caass]: https://github.com/caass
+    [pull/1855]: https://github.com/cloudflare/wrangler/pull/1855
+
+  - **add `--format` option, including default `json` and new `pretty` - [caass], [pull/1851]**
+
+    You can now pass `--format pretty` to `wrangler tail` to get pretty printed logs!
+    `--format json` is also available, and gives you the existing JSON-formatted logs.
+
+    [caass]: https://github.com/caass
+    [pull/1851]: https://github.com/cloudflare/wrangler/pull/1851
+
+- ### Fixes
+
+  - **Revert "Print line and column numbers for exception thrown (#1645)" - [Electroid], [pull/1835]**
+
+    This reverts commit 74a89f7c383bc22758cbe55096ce3016c5c319d7.
+
+    Closes #1826
+
+    This commit is causing `wrangler dev` to not show uncaught exceptions. Reverting `chrome-devtools-rs` was also necessary.
+
+    We have a fix in progress to fix the underlying issue and re-introduce line and column numbers.
+
+    [electroid]: https://github.com/Electroid
+    [pull/1835]: https://github.com/cloudflare/wrangler/pull/1835
+
+  - **Don't generate `usage_model = ""` by default - [xortive], [issues/1850]**
+
+    Generating `usage_model = ""` by default was violating the toml spec, which broke
+    `wrangler init --site` as `usage_model` came after `[site]`.
+
+    [xortive]: https://github.com/xortive
+    [issues/1850]: https://github.com/cloudflare/wrangler/pull/1850
+
+## 1.15.1
+
+- ### Features
+
+  - **Add config option to switch usage model to unbound - [ObsidianMinor], [pull/1837]**
+
+    [obsidianminor]: https://github.com/ObsidianMinor
+    [pull/1837]: https://github.com/cloudflare/wrangler/pull/1837
+
+- ### Fixes
+
+  - **fix: remove unused import of WasmMainTemplatePlugin - [jasikpark], [pull/1802]**
+
+    This should improve #1721. https://github.com/cloudflare/wrangler/issues/1721#issuecomment-791974664
+
+    [jasikpark]: https://github.com/jasikpark
+    [pull/1802]: https://github.com/cloudflare/wrangler/pull/1802
+
+  - **Hot fix for error message helper not working - [Electroid], [pull/1847]**
+
+    The JSON is pretty printed, which means it contains a space.
+
+    [electroid]: https://github.com/Electroid
+    [pull/1847]: https://github.com/cloudflare/wrangler/pull/1847
+
+  - **Revert "Print line and column numbers for exception thrown (#1645)" - [Electroid], [pull/1835]**
+
+    This reverts commit 74a89f7c383bc22758cbe55096ce3016c5c319d7.
+
+    Closes #1826
+
+    This commit is causing `wrangler dev` to not show uncaught exceptions. Reverting `chrome-devtools-rs` was also necessary.
+
+    [electroid]: https://github.com/Electroid
+    [pull/1835]: https://github.com/cloudflare/wrangler/pull/1835
+
 ## 1.15.0
 
 - ### Fixes

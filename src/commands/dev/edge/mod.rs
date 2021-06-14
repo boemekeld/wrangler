@@ -9,6 +9,7 @@ use crate::commands::dev::{socket, Protocol, ServerConfig};
 use crate::deploy::DeployTarget;
 use crate::settings::global_user::GlobalUser;
 use crate::settings::toml::Target;
+use anyhow::Result;
 
 use tokio::runtime::Runtime as TokioRuntime;
 
@@ -23,7 +24,7 @@ pub fn dev(
     local_protocol: Protocol,
     upstream_protocol: Protocol,
     verbose: bool,
-) -> Result<(), failure::Error> {
+) -> Result<()> {
     let session = Session::new(&target, &user, &deploy_target)?;
     let mut target = target;
 
@@ -53,7 +54,7 @@ pub fn dev(
         });
     }
 
-    let mut runtime = TokioRuntime::new()?;
+    let runtime = TokioRuntime::new()?;
     runtime.block_on(async {
         let devtools_listener = tokio::spawn(socket::listen(session.websocket_url));
         let server = match local_protocol {

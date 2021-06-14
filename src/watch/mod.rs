@@ -3,12 +3,13 @@ use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
 pub use watcher::wait_for_changes;
 
-use crate::build::command;
 use crate::settings::toml::{Target, TargetType};
 use crate::terminal::message::{Message, StdOut};
 use crate::wranglerjs;
+use crate::{build::command, build_target};
 use crate::{commands, install};
 
+use anyhow::Result;
 use notify::{self, RecursiveMode, Watcher};
 use std::sync::mpsc;
 use std::thread;
@@ -23,32 +24,56 @@ const RUST_IGNORE: &[&str] = &["pkg", "target", "worker/generated"];
 
 // watch a project for changes and re-build it when necessary,
 // outputting a build event to tx.
-pub fn watch_and_build(
-    target: &Target,
-    tx: Option<mpsc::Sender<()>>,
-) -> Result<(), failure::Error> {
+pub fn watch_and_build(target: &Target, tx: Option<mpsc::Sender<()>>) -> Result<()> {
     let target_type = &target.target_type;
+    let build = target.build.clone();
     match target_type {
         TargetType::JavaScript => {
-            thread::spawn(move || {
+            let target = target.clone();
+            thread::spawn::<_, Result<()>>(move || {
                 let (watcher_tx, watcher_rx) = mpsc::channel();
-                let mut watcher = notify::watcher(watcher_tx, Duration::from_secs(1)).unwrap();
+                let mut watcher = notify::watcher(watcher_tx, Duration::from_secs(1))?;
 
-                watcher
-                    .watch(JAVASCRIPT_PATH, RecursiveMode::Recursive)
-                    .unwrap();
-                StdOut::info(&format!("watching {:?}", &JAVASCRIPT_PATH));
+                match build {
+                    None => {
+                        watcher.watch(JAVASCRIPT_PATH, RecursiveMode::Recursive)?;
+                        StdOut::info(&format!("watching {:?}", &JAVASCRIPT_PATH));
 
-                loop {
-                    match wait_for_changes(&watcher_rx, COOLDOWN_PERIOD) {
-                        Ok(_path) => {
-                            if let Some(tx) = tx.clone() {
-                                tx.send(()).expect("--watch change message failed to send");
+                        loop {
+                            match wait_for_changes(&watcher_rx, COOLDOWN_PERIOD) {
+                                Ok(_path) => {
+                                    if let Some(tx) = tx.clone() {
+                                        tx.send(()).expect("--watch change message failed to send");
+                                    }
+                                }
+                                Err(e) => {
+                                    log::debug!("{:?}", e);
+                                    StdOut::user_error("Something went wrong while watching.")
+                                }
                             }
                         }
-                        Err(e) => {
-                            log::debug!("{:?}", e);
-                            StdOut::user_error("Something went wrong while watching.")
+                    }
+                    Some(config) => {
+                        config.verify_watch_dir()?;
+                        watcher.watch(config.watch_dir, notify::RecursiveMode::Recursive)?;
+
+                        loop {
+                            match wait_for_changes(&watcher_rx, COOLDOWN_PERIOD) {
+                                Ok(_path) => match build_target(&target) {
+                                    Ok(output) => {
+                                        StdOut::success(&output);
+                                        if let Some(tx) = tx.clone() {
+                                            tx.send(())
+                                                .expect("--watch change message failed to send");
+                                        }
+                                    }
+                                    Err(e) => StdOut::user_error(&e.to_string()),
+                                },
+                                Err(e) => {
+                                    log::debug!("{:?}", e);
+                                    StdOut::user_error("Something went wrong while watching.")
+                                }
+                            }
                         }
                     }
                 }

@@ -14,6 +14,7 @@
 use console::Emoji;
 
 pub static BICEP: Emoji = Emoji("💪 ", "");
+pub static BUG: Emoji = Emoji("🐛", "");
 pub static CRAB: Emoji = Emoji("🦀 ", "");
 pub static COMPUTER: Emoji = Emoji("💻 ", "");
 pub static DANCERS: Emoji = Emoji("👯 ", "");
@@ -37,3 +38,4 @@ pub static WARN: Emoji = Emoji("⚠️ ", "");
 pub static WAVING: Emoji = Emoji("👋 ", "");
 pub static WORKER: Emoji = Emoji("👷 ", "");
 pub static UNLOCKED: Emoji = Emoji("🔓", "");
+pub static X: Emoji = Emoji("❌ ", "");

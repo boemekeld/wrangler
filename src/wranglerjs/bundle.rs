@@ -1,4 +1,6 @@
+use anyhow::Result;
 use base64::decode;
+
 #[cfg(test)]
 use std::env;
 use std::fs;
@@ -18,9 +20,9 @@ pub struct Bundle {
 // We call a {Bundle} the output of a {Bundler}; representing what {Webpack}
 // produces.
 impl Bundle {
-    pub fn new(build_dir: &PathBuf) -> Bundle {
+    pub fn new(package_dir: &PathBuf) -> Bundle {
         Bundle {
-            out: build_dir.join(BUNDLE_OUT),
+            out: package_dir.join(BUNDLE_OUT),
         }
     }
 
@@ -29,7 +31,7 @@ impl Bundle {
         Bundle { out }
     }
 
-    pub fn write(&self, wranglerjs_output: &WranglerjsOutput) -> Result<(), failure::Error> {
+    pub fn write(&self, wranglerjs_output: &WranglerjsOutput) -> Result<()> {
         if !self.out.exists() {
             fs::create_dir(&self.out)?;
         }

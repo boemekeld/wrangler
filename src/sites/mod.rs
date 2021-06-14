@@ -296,7 +296,7 @@ fn generate_path_with_hash(path: &Path, hashed_value: String) -> Result<String> 
     }
 }
 
-fn remove_hash_from_path(path: &Path) -> Result<String, failure::Error> {
+fn remove_hash_from_path(path: &Path) -> Result<String, anyhow::Error> {
     if let Some(file_stem) = path.file_stem() {
         let file_stem_path = Path::new(file_stem);
         if let Some(file_name_unhashed) = file_stem_path.file_stem() {
@@ -312,10 +312,10 @@ fn remove_hash_from_path(path: &Path) -> Result<String, failure::Error> {
     
             Ok(generate_url_safe_path(&new_path)?)
         } else {
-            failure::bail!("no file_name_unhashed for file_stem {}", file_stem_path.display())
+            anyhow::bail!("no file_name_unhashed for file_stem {}", file_stem_path.display())
         }
     } else {
-        failure::bail!("no file_stem for path {}", path.display())
+        anyhow::bail!("no file_stem for path {}", path.display())
     }
 }
 

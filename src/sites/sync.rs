@@ -50,8 +50,6 @@ pub fn sync(
     let (pairs, mut asset_manifest, _): (Vec<KeyValuePair>, AssetManifest, _) =
         directory_keys_values(target, path)?;
 
-    let to_upload = filter_files(pairs.clone(), &remote_keys);
-
     // Now delete files from Workers KV that exist in remote but no longer exist locally.
     // Get local keys
     let mut local_keys: HashSet<_> = HashSet::new();

@@ -622,4 +622,16 @@ mod tests {
         assert_eq!(path, expected_path);
         assert!(expected_key_regex.is_match(&key));
     }
+
+    #[test]
+    fn it_removes_hash_from_path_properly() {
+        let value = "<h1>Hello World!</h1>";
+        let hashed_value = get_digest(String::from(value));
+        let hashed_path = format!("path/to/asset.{}.html", hashed_value);
+        let path = Path::new(&hashed_path);
+        let path_without_hash = remove_hash_from_path(&path).unwrap();
+        let expected_path = "path/to/asset.html".to_string();
+        
+        assert_eq!(path_without_hash, expected_path);
+    }
 }

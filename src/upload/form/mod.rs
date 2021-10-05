@@ -12,7 +12,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::settings::binding;
-use crate::settings::toml::{Target, TargetType, UploadFormat};
+use crate::settings::toml::{Target, TargetType, UploadFormat, UsageModel};
 use crate::sites::AssetManifest;
 use crate::wranglerjs;
 
@@ -31,6 +31,8 @@ pub fn build(
     session_config: Option<serde_json::Value>,
 ) -> Result<Form> {
     let target_type = &target.target_type;
+    let compatibility_date = target.compatibility_date.clone();
+    let compatibility_flags = target.compatibility_flags.clone();
     let kv_namespaces = &target.kv_namespaces;
     let durable_object_classes = target
         .durable_objects
@@ -40,6 +42,7 @@ pub fn build(
     let mut text_blobs: Vec<TextBlob> = Vec::new();
     let mut plain_texts: Vec<PlainText> = Vec::new();
     let mut wasm_modules: Vec<WasmModule> = Vec::new();
+    let usage_model = target.usage_model;
 
     if let Some(blobs) = &target.text_blobs {
         for (key, blob_path) in blobs.iter() {
@@ -82,14 +85,17 @@ pub fn build(
             wasm_modules.push(wasm_module);
             let script_path = PathBuf::from("./worker/generated/script.js");
 
-            let assets = ServiceWorkerAssets::new(
+            let assets = ServiceWorkerAssets {
                 script_path,
+                compatibility_date,
+                compatibility_flags,
                 wasm_modules,
-                kv_namespaces.to_vec(),
+                kv_namespaces: kv_namespaces.to_vec(),
                 durable_object_classes,
                 text_blobs,
                 plain_texts,
-            )?;
+                usage_model,
+            };
 
             service_worker::build_form(&assets, session_config)
         }
@@ -101,30 +107,36 @@ pub fn build(
                     let package = Package::new(&package_dir)?;
                     let script_path = package_dir.join(package.main(&package_dir)?);
 
-                    let assets = ServiceWorkerAssets::new(
+                    let assets = ServiceWorkerAssets {
                         script_path,
+                        compatibility_date,
+                        compatibility_flags,
                         wasm_modules,
-                        kv_namespaces.to_vec(),
+                        kv_namespaces: kv_namespaces.to_vec(),
                         durable_object_classes,
                         text_blobs,
                         plain_texts,
-                    )?;
+                        usage_model,
+                    };
 
                     service_worker::build_form(&assets, session_config)
                 }
                 UploadFormat::Modules { main, dir, rules } => {
                     let migration = match &target.migrations {
-                        Some(migrations) => Some(migrations.api_migration()?),
+                        Some(migrations) => migrations.api_migration()?,
                         None => None,
                     };
 
                     let module_config = ModuleConfig::new(main, dir, rules);
                     let assets = ModulesAssets::new(
+                        compatibility_date,
+                        compatibility_flags,
                         module_config.get_modules()?,
                         kv_namespaces.to_vec(),
                         durable_object_classes,
                         migration,
                         plain_texts,
+                        usage_model,
                     )?;
 
                     modules_worker::build_form(&assets, session_config)
@@ -136,14 +148,17 @@ pub fn build(
                 let package = Package::new(&package_dir)?;
                 let script_path = package.main(&package_dir)?;
 
-                let assets = ServiceWorkerAssets::new(
+                let assets = ServiceWorkerAssets {
                     script_path,
+                    compatibility_date,
+                    compatibility_flags,
                     wasm_modules,
-                    kv_namespaces.to_vec(),
+                    kv_namespaces: kv_namespaces.to_vec(),
                     durable_object_classes,
                     text_blobs,
                     plain_texts,
-                )?;
+                    usage_model,
+                };
 
                 service_worker::build_form(&assets, session_config)
             }
@@ -163,14 +178,17 @@ pub fn build(
                 wasm_modules.push(wasm_module);
             }
 
-            let assets = ServiceWorkerAssets::new(
+            let assets = ServiceWorkerAssets {
                 script_path,
+                compatibility_date,
+                compatibility_flags,
                 wasm_modules,
-                kv_namespaces.to_vec(),
+                kv_namespaces: kv_namespaces.to_vec(),
                 durable_object_classes,
                 text_blobs,
                 plain_texts,
-            )?;
+                usage_model,
+            };
 
             service_worker::build_form(&assets, session_config)
         }
@@ -182,7 +200,7 @@ fn get_asset_manifest_blob(asset_manifest: AssetManifest) -> Result<String> {
     Ok(asset_manifest)
 }
 
-fn filestem_from_path(path: &PathBuf) -> Option<String> {
+fn filestem_from_path(path: &Path) -> Option<String> {
     path.file_stem()?.to_str().map(|s| s.to_string())
 }
 

@@ -3,12 +3,13 @@ use std::fs::File;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(not(target_os = "windows"))]
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::Result;
 use cloudflare::endpoints::user::{GetUserDetails, GetUserTokenStatus};
 use cloudflare::framework::apiclient::ApiClient;
 
+use crate::commands::logout::invalidate_oauth_token;
 use crate::http;
 use crate::settings::{get_global_config_path, global_user::GlobalUser};
 use crate::terminal::message::{Message, StdOut};
@@ -16,7 +17,7 @@ use crate::terminal::styles;
 
 // set the permissions on the dir, we want to avoid that other user reads to file
 #[cfg(not(target_os = "windows"))]
-pub fn set_file_mode(file: &PathBuf) {
+pub fn set_file_mode(file: &Path) {
     File::open(&file)
         .unwrap()
         .set_permissions(PermissionsExt::from_mode(0o600))
@@ -29,7 +30,10 @@ pub fn global_config(user: &GlobalUser, verify: bool) -> Result<()> {
         validate_credentials(user)?;
     }
 
-    let config_file = get_global_config_path()?;
+    // Invalidate previous oauth token if present
+    invalidate_oauth_token("`wrangler config`".to_string());
+
+    let config_file = get_global_config_path();
     user.to_file(&config_file)?;
 
     // set permissions on the file
@@ -50,7 +54,7 @@ pub fn validate_credentials(user: &GlobalUser) -> Result<()> {
     let client = http::cf_v4_client(user)?;
 
     match user {
-        GlobalUser::TokenAuth { .. } => match client.request(&GetUserTokenStatus {}) {
+        GlobalUser::ApiTokenAuth { .. } => match client.request(&GetUserTokenStatus {}) {
             Ok(success) => {
                 if success.result.status == "active" {
                     Ok(())
@@ -72,5 +76,6 @@ pub fn validate_credentials(user: &GlobalUser) -> Result<()> {
                 anyhow::bail!("Authentication check failed. Please make sure your email and global API key pair are correct.\nSee {}", api_docs_url)
             }
         },
+        GlobalUser::OAuthTokenAuth { .. } => anyhow::bail!("OAuth token cannot be verified."),
     }
 }

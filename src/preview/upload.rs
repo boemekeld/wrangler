@@ -54,10 +54,10 @@ pub fn upload(
         Some(user) => {
             log::info!("GlobalUser set, running with authentication");
 
-            let missing_fields = validate(&target);
+            let missing_fields = validate(target);
 
             if missing_fields.is_empty() {
-                let client = http::legacy_auth_client(&user);
+                let client = http::legacy_auth_client(user);
 
                 if let Some(site_config) = target.site.clone() {
                     let site_namespace = add_namespace(user, target, true)?;
@@ -73,7 +73,7 @@ pub fn upload(
 
                     bulk::put(target, user, &site_namespace.id, to_upload, &None)?;
 
-                    let preview = authenticated_upload(&client, &target, Some(asset_manifest))?;
+                    let preview = authenticated_upload(&client, target, Some(asset_manifest))?;
                     if !to_delete.is_empty() {
                         if verbose {
                             StdOut::info("Deleting stale files...");
@@ -84,7 +84,7 @@ pub fn upload(
 
                     preview
                 } else {
-                    authenticated_upload(&client, &target, None)?
+                    authenticated_upload(&client, target, None)?
                 }
             } else {
                 StdOut::warn(&format!(
@@ -96,7 +96,7 @@ pub fn upload(
                     anyhow::bail!(SITES_UNAUTH_PREVIEW_ERR)
                 }
 
-                unauthenticated_upload(&target)?
+                unauthenticated_upload(target)?
             }
         }
         None => {
@@ -113,7 +113,7 @@ pub fn upload(
                 anyhow::bail!(SITES_UNAUTH_PREVIEW_ERR)
             }
 
-            unauthenticated_upload(&target)?
+            unauthenticated_upload(target)?
         }
     };
 
@@ -123,7 +123,7 @@ pub fn upload(
 fn validate(target: &Target) -> Vec<&str> {
     let mut missing_fields = Vec::new();
 
-    if target.account_id.is_empty() {
+    if target.account_id.maybe_load().is_none() {
         missing_fields.push("account_id")
     };
     if target.name.is_empty() {
@@ -150,7 +150,8 @@ fn authenticated_upload(
 ) -> Result<Preview> {
     let create_address = format!(
         "https://api.cloudflare.com/client/v4/accounts/{}/workers/scripts/{}/preview",
-        target.account_id, target.name
+        target.account_id.load()?,
+        target.name
     );
     log::info!("address: {}", create_address);
 
@@ -161,19 +162,16 @@ fn authenticated_upload(
         .multipart(script_upload_form)
         .send()?;
 
-    if !res.status().is_success() {
-        anyhow::bail!(
-            "Something went wrong! Status: {}, Details {}",
-            res.status(),
-            res.text()?
-        )
+    let status = res.status();
+    let text = res.text()?;
+    if !status.is_success() {
+        anyhow::bail!(crate::format_api_errors(text))
     }
 
-    let text = &res.text()?;
     log::info!("Response from preview: {:#?}", text);
 
     let response: V4ApiResponse =
-        serde_json::from_str(text).expect("could not create a script on cloudflareworkers.com");
+        serde_json::from_str(&text).expect("could not create a script on cloudflareworkers.com");
 
     Ok(Preview::from(response.result))
 }
@@ -207,19 +205,16 @@ fn unauthenticated_upload(target: &Target) -> Result<Preview> {
         .multipart(script_upload_form)
         .send()?;
 
-    if !res.status().is_success() {
-        anyhow::bail!(
-            "Something went wrong! Status: {}, Details {}",
-            res.status(),
-            res.text()?
-        )
+    let status = res.status();
+    let text = res.text()?;
+    if !status.is_success() {
+        anyhow::bail!(crate::format_api_errors(text))
     }
 
-    let text = &res.text()?;
     log::info!("Response from preview: {:#?}", text);
 
     let preview: Preview =
-        serde_json::from_str(text).expect("could not create a script on cloudflareworkers.com");
+        serde_json::from_str(&text).expect("could not create a script on cloudflareworkers.com");
 
     Ok(preview)
 }

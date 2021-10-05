@@ -7,13 +7,18 @@ use serde::Serialize;
 use crate::settings::binding::Binding;
 use crate::settings::toml::migrations::ApiMigration;
 
-use super::ModulesAssets;
+use super::{ModulesAssets, UsageModel};
 
 #[derive(Serialize, Debug)]
 struct Metadata {
     pub main_module: String,
     pub bindings: Vec<Binding>,
     pub migrations: Option<ApiMigration>,
+    pub usage_model: Option<UsageModel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compatibility_date: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub compatibility_flags: Vec<String>,
 }
 
 pub fn build_form(
@@ -50,7 +55,10 @@ fn add_metadata(mut form: Form, assets: &ModulesAssets) -> Result<Form> {
     let metadata_json = serde_json::json!(&Metadata {
         main_module: assets.manifest.main.clone(),
         bindings: assets.bindings(),
-        migrations: assets.migration.clone()
+        migrations: assets.migration.clone(),
+        usage_model: assets.usage_model,
+        compatibility_date: assets.compatibility_date.clone(),
+        compatibility_flags: assets.compatibility_flags.clone(),
     });
 
     let metadata = Part::text(metadata_json.to_string())

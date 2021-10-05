@@ -9,15 +9,12 @@ use cloudflare::endpoints::workerskv::write_bulk::KeyValuePair;
 use anyhow::{anyhow, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 
-use crate::commands::kv::validate_target;
 use crate::kv::bulk::put;
 use crate::kv::bulk::BATCH_KEY_MAX;
 use crate::settings::global_user::GlobalUser;
 use crate::settings::toml::Target;
 use crate::terminal::message::{Message, StdErr};
 pub fn run(target: &Target, user: &GlobalUser, namespace_id: &str, filename: &Path) -> Result<()> {
-    validate_target(target)?;
-
     let pairs: Vec<KeyValuePair> = match &metadata(filename) {
         Ok(file_type) if file_type.is_file() => {
             let data = fs::read_to_string(filename)?;
@@ -45,7 +42,7 @@ pub fn run(target: &Target, user: &GlobalUser, namespace_id: &str, filename: &Pa
         None
     };
 
-    put(target, &user, namespace_id, pairs, &progress_bar)?;
+    put(target, user, namespace_id, pairs, &progress_bar)?;
 
     if let Some(pb) = &progress_bar {
         pb.finish_with_message(&format!("uploaded {} key value pairs", len));

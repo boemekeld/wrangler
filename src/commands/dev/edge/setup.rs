@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt;
 use std::path::Path;
 
 use crate::deploy::DeployTarget;
@@ -9,7 +11,7 @@ use crate::terminal::message::{Message, StdOut};
 use crate::upload;
 
 use anyhow::{anyhow, Result};
-use reqwest::Url;
+use reqwest::{StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -20,7 +22,7 @@ pub(super) fn upload(
     session_token: String,
     verbose: bool,
 ) -> Result<String> {
-    let client = crate::http::legacy_auth_client(&user);
+    let client = crate::http::legacy_auth_client(user);
 
     let (to_delete, asset_manifest, site_namespace_id) = if let Some(site_config) =
         target.site.clone()
@@ -41,7 +43,7 @@ pub(super) fn upload(
     };
 
     let session_config = get_session_config(deploy_target);
-    let address = get_upload_address(target);
+    let address = get_upload_address(target)?;
 
     let script_upload_form = upload::form::build(target, asset_manifest, Some(session_config))?;
 
@@ -49,8 +51,12 @@ pub(super) fn upload(
         .post(&address)
         .header("cf-preview-upload-config-token", session_token)
         .multipart(script_upload_form)
-        .send()?
-        .error_for_status()?;
+        .send()?;
+
+    if response.status() == StatusCode::BAD_REQUEST {
+        return Err(BadRequestError(crate::format_api_errors(response.text()?)).into());
+    }
+    let response = response.error_for_status()?;
 
     if !to_delete.is_empty() {
         if verbose {
@@ -71,6 +77,7 @@ pub(super) fn upload(
 pub struct Session {
     pub host: String,
     pub websocket_url: Url,
+    pub prewarm_url: Url,
     pub preview_token: String,
 }
 
@@ -96,20 +103,21 @@ impl Session {
             _ => unreachable!(),
         };
 
-        let client = crate::http::legacy_auth_client(&user);
+        let client = crate::http::legacy_auth_client(user);
         let response = client.get(exchange_url).send()?.error_for_status()?;
         let text = &response.text()?;
         let response: InspectorV4ApiResponse = serde_json::from_str(text)?;
-        let full_url = format!(
+        let websocket_url = format!(
             "{}?{}={}",
             &response.inspector_websocket, "cf_workers_preview_token", &response.token
-        );
-        let websocket_url = Url::parse(&full_url)?;
+        )
+        .parse()?;
         let preview_token = response.token;
 
         Ok(Session {
             host,
             websocket_url,
+            prewarm_url: response.prewarm.parse()?,
             preview_token,
         })
     }
@@ -129,8 +137,8 @@ fn get_session_config(target: &DeployTarget) -> serde_json::Value {
     }
 }
 
-fn get_session_address(target: &DeployTarget) -> String {
-    match target {
+fn get_session_address(target: &DeployTarget) -> Result<String> {
+    let addr = match target {
         DeployTarget::Zoned(config) => format!(
             "https://api.cloudflare.com/client/v4/zones/{}/workers/edge-preview",
             config.zone_id
@@ -138,22 +146,24 @@ fn get_session_address(target: &DeployTarget) -> String {
         // TODO: zoneless is probably wrong
         DeployTarget::Zoneless(config) => format!(
             "https://api.cloudflare.com/client/v4/accounts/{}/workers/subdomain/edge-preview",
-            config.account_id
+            config.account_id.load()?,
         ),
         _ => unreachable!(),
-    }
+    };
+    Ok(addr)
 }
 
-fn get_upload_address(target: &mut Target) -> String {
-    format!(
+fn get_upload_address(target: &mut Target) -> Result<String> {
+    Ok(format!(
         "https://api.cloudflare.com/client/v4/accounts/{}/workers/scripts/{}/edge-preview",
-        target.account_id, target.name
-    )
+        target.account_id.load()?,
+        target.name
+    ))
 }
 
 fn get_exchange_url(deploy_target: &DeployTarget, user: &GlobalUser) -> Result<Url> {
-    let client = crate::http::legacy_auth_client(&user);
-    let address = get_session_address(deploy_target);
+    let client = crate::http::legacy_auth_client(user);
+    let address = get_session_address(deploy_target)?;
     let url = Url::parse(&address)?;
     let response = client.get(url).send()?.error_for_status()?;
     let text = &response.text()?;
@@ -176,6 +186,7 @@ struct SessionV4ApiResponse {
 #[derive(Debug, Serialize, Deserialize)]
 struct InspectorV4ApiResponse {
     pub inspector_websocket: String,
+    pub prewarm: String,
     pub token: String,
 }
 
@@ -187,4 +198,15 @@ struct Preview {
 #[derive(Debug, Serialize, Deserialize)]
 struct PreviewV4ApiResponse {
     pub result: Preview,
+}
+
+#[derive(Debug)]
+pub(crate) struct BadRequestError(pub(crate) String);
+
+impl Error for BadRequestError {}
+
+impl fmt::Display for BadRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }

@@ -1,5 +1,5 @@
+use crate::http;
 use crate::settings::global_user::GlobalUser;
-use crate::{http, TEMP_NOTICE_ES_MODULES_DO_BETA};
 
 use anyhow::Result;
 
@@ -11,16 +11,6 @@ pub struct ScheduleTarget {
 }
 
 impl ScheduleTarget {
-    pub fn build(account_id: String, script_name: String, crons: Vec<String>) -> Result<Self> {
-        // TODO: add validation for expressions before pushing them to the API
-        // we can do this once the cron parser is open sourced
-        Ok(Self {
-            account_id,
-            script_name,
-            crons,
-        })
-    }
-
     pub fn deploy(&self, user: &GlobalUser) -> Result<Vec<String>> {
         log::info!("publishing schedules");
         let schedule_worker_addr = format!(
@@ -38,13 +28,9 @@ impl ScheduleTarget {
             .send()?;
 
         let status = res.status();
+        let text = res.text()?;
         if !status.is_success() {
-            let text = res.text()?;
-            if text.contains("workers.api.error.not_entitled") {
-                anyhow::bail!(TEMP_NOTICE_ES_MODULES_DO_BETA)
-            }
-
-            anyhow::bail!("Something went wrong! Status: {}, Details {}", status, text)
+            anyhow::bail!(crate::format_api_errors(text))
         }
 
         Ok(self.crons.clone())

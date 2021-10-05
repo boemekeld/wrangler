@@ -3,7 +3,8 @@ use std::process::Command;
 use std::str;
 
 use assert_cmd::prelude::*;
-use wrangler::fixtures::{Fixture, WranglerToml};
+mod fixtures;
+use fixtures::{Fixture, WranglerToml};
 
 #[test]
 fn it_builds_webpack() {
@@ -359,7 +360,8 @@ fn it_builds_with_webpack_name_output_warn() {
 
     assert!(
         stderr.contains("webpack's output filename is being renamed"),
-        format!("given: {}", stderr)
+        "given: {}",
+        stderr
     );
 }
 
@@ -410,16 +412,14 @@ fn build_fails_with(fixture: &Fixture, expected_message: &str) {
     build.arg("build");
 
     let output = build.output().expect("failed to execute process");
+    let stderr = str::from_utf8(&output.stderr).unwrap();
+    eprintln!("{}", stderr);
     assert!(!output.status.success());
     assert!(
+        stderr.contains(expected_message),
+        "expected {:?} not found, given: {:?}",
+        expected_message,
         str::from_utf8(&output.stderr)
-            .unwrap()
-            .contains(expected_message),
-        format!(
-            "expected {:?} not found, given: {:?}",
-            expected_message,
-            str::from_utf8(&output.stderr)
-        )
     );
 }
 

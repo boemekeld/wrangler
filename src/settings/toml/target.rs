@@ -1,5 +1,6 @@
 use super::durable_objects::DurableObjects;
 use super::kv_namespace::KvNamespace;
+pub(crate) use super::manifest::LazyAccountId;
 use super::site::Site;
 use super::target_type::TargetType;
 use super::UsageModel;
@@ -12,7 +13,7 @@ use std::path::PathBuf;
 
 #[derive(Clone, Debug, Default)]
 pub struct Target {
-    pub account_id: String,
+    pub account_id: LazyAccountId,
     pub kv_namespaces: Vec<KvNamespace>,
     pub durable_objects: Option<DurableObjects>,
     pub migrations: Option<Migrations>,
@@ -25,6 +26,8 @@ pub struct Target {
     pub text_blobs: Option<HashMap<String, PathBuf>>,
     pub usage_model: Option<UsageModel>,
     pub wasm_modules: Option<HashMap<String, PathBuf>>,
+    pub compatibility_date: Option<String>,
+    pub compatibility_flags: Vec<String>,
 }
 
 impl Target {
